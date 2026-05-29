@@ -444,6 +444,7 @@ class FrontEnd(mp.Process):
                 depth_pred = predictions["depth"].detach() # depth range: 0-255 in float
 
                 depth_ori = depth_pred.squeeze().cpu().numpy() # shape: [H, W]
+                rail_info = {"status": "disabled", "scale": 1.0, "confidence": 0.0}
                 if self.rail_scale.enabled:
                     depth_ori, rail_info = self.rail_scale.apply(
                         cur_frame_idx,
@@ -458,6 +459,9 @@ class FrontEnd(mp.Process):
                             f"conf={rail_info.get('confidence', 0.0):.2f}",
                             tag="RailScale",
                         )
+                rail_info["image_height"] = int(depth_ori.shape[0])
+                rail_info["image_width"] = int(depth_ori.shape[1])
+                viewpoint.rail_info = rail_info
                 depth_down = cv2.resize(depth_ori, (self.dataset.width, self.dataset.height))
                 viewpoint.depth_ori = depth_ori
                 viewpoint.depth =depth_down

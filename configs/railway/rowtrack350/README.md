@@ -181,6 +181,16 @@ cd /root/GigaSLAM
 | `RailScale.ego_path_guidance.debug_every` | `20` | 每隔多少帧保存 EgoPath debug 图。 | 和 RailScale debug 默认间隔一致。 | 需要密集核对时调小。 |
 | `RailScale.ego_path_guidance.sample_y_fracs` | `[0.58, 0.65, 0.72, 0.8, 0.88]` | EgoPath 与 RailScale 对比的采样行。 | 使用同一组中近距离行，便于比较中心/宽度差异。 | 若 RailScale 采样行改变，应同步。 |
 
+### DepthGaussianConsistency
+
+| 参数 | 当前值 | 含义 | 为什么这样设 | 调整建议 |
+|---|---:|---|---|---|
+| `DepthGaussianConsistency.enabled` | `false` | 是否启用 Depth-Gaussian Consistency 实验损失。 | 主线默认关闭，保证 rowtrack350 baseline 不受影响。 | 只通过 `configs/railway/rowtrack350/experiments/dgc_bold.yaml` 做受控实验。 |
+| `DepthGaussianConsistency.lambda_depth` | `0.0` | DGC loss 在 mapping loss 中的权重。 | 默认 0，避免隐式改变主线。 | bold 实验使用 `0.05`，若退化则直接放弃方向，不做单序列调参。 |
+| `DepthGaussianConsistency.learn_depth_scale` | `false` | 是否为每个 keyframe 学习局部 depth scale adapter。 | 主线不学习，避免引入不可解释漂移。 | 仅 DGC 实验打开，并结合 clamp 和 prior 检查是否饱和。 |
+
+更完整的动机、公式口径、风险和放弃条件见 `docs/depth_gaussian_consistency_note.md`。
+
 ### Hierarchical
 
 | 参数 | 当前值 | 含义 | 为什么这样设 | 调整建议 |

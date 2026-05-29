@@ -46,6 +46,7 @@ class Camera(nn.Module):
         self.original_image = color
         self.depth = depth
         self.grad_mask = None
+        self.rail_info = {}
 
         self.fx = fx
         self.fy = fy
@@ -67,6 +68,9 @@ class Camera(nn.Module):
             torch.tensor([0.0], requires_grad=True, device=device)
         )
         self.exposure_b = nn.Parameter(
+            torch.tensor([0.0], requires_grad=True, device=device)
+        )
+        self.depth_log_scale_delta = nn.Parameter(
             torch.tensor([0.0], requires_grad=True, device=device)
         )
 
@@ -159,3 +163,5 @@ class Camera(nn.Module):
 
         self.exposure_a = None
         self.exposure_b = None
+        self.depth_log_scale_delta = None
+        self.rail_info = {}

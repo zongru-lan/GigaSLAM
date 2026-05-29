@@ -1,0 +1,60 @@
+inherit_from: configs/railway/rowtrack350/full_mainline/template.yaml
+
+# DGC-v2: Rail-aware selective normalized depth-Gaussian consistency.
+# This keeps full rendering metrics while saving only keyframe RGB renders.
+Results:
+  save_dir: results/dgc_selective
+  eval_rendering: true
+  logging:
+    quiet: true
+  rendering_eval:
+    eval_rgb_metrics: true
+    save_rgb: true
+    save_rgb_keyframes_only: true
+    save_downsample_rgb: false
+    filename_from_input: true
+  rendered_depth_diag:
+    enabled: true
+    keyframes_only: false
+    save_rgb: false
+    eval_rgb_metrics: true
+    save_npz: true
+    save_npz_limit: 20
+    save_preview: true
+    save_preview_limit: 20
+    opacity_threshold: 0.95
+    preview_max_depth: 80.0
+
+DepthGaussianConsistency:
+  enabled: true
+  mode: rail_selective_normalized
+  lambda_depth: 0.05
+  min_depth: 0.1
+  max_depth: 120.0
+  downsample: 4
+  log_every: 50
+  gating:
+    allowed_rail_statuses:
+    - corrected
+    opacity_threshold: 0.95
+    min_valid_ratio: 0.03
+    min_rail_confidence: 0.45
+    max_row_scale_raw_mad: 0.08
+    max_pixel_width_mad: 120.0
+  rail_mask:
+    enabled: true
+    source: rail_points
+    expand_width_frac: 0.35
+  normalized_loss:
+    enabled: true
+    shape_weight: 0.75
+    metric_weight: 0.25
+    robust_loss: huber_log
+    huber_delta: 0.05
+  learn_depth_scale: true
+  depth_scale_lr: 0.001
+  depth_scale_prior_weight: 0.02
+  depth_log_scale_clamp: 0.15
+
+Hierarchical:
+  color_refinement_iter: 400

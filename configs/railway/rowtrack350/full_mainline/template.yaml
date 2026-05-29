@@ -18,4 +18,4 @@ SLAM:
   motion_thresh: 0.0
 
 Hierarchical:
-  color_refinement_iter: 10
+  color_refinement_iter: 400

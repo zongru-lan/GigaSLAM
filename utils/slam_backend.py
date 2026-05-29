@@ -1,3 +1,5 @@
+import csv
+import os
 import random
 
 import torch
@@ -68,6 +70,11 @@ class BackEnd(mp.Process):
 
         self.color_refinement_iter = config['Hierarchical']['color_refinement_iter']
         self.viz = config['SLAM']['viz']
+        self.dgc_cfg = config.get("DepthGaussianConsistency", {}) or {}
+        self.dgc_enabled = bool(self.dgc_cfg.get("enabled", False))
+        self.dgc_diag_rows = []
+        self.dgc_diag_written = False
+        self.dgc_log_every = max(int(self.dgc_cfg.get("log_every", 50)), 1)
 
     def set_hyperparams(self):
         self.save_results = self.config["Results"]["save_results"]
@@ -90,6 +97,97 @@ class BackEnd(mp.Process):
         self.size_threshold = self.config["Training"]["size_threshold"]
         self.window_size = self.config["Training"]["window_size"]
         self.single_thread = self.config["Training"]["single_thread"]
+
+    def record_dgc_stats(self, frame_idx, stats):
+        if not self.dgc_enabled or stats is None:
+            return
+        row = {
+            "iteration": self.iteration_count,
+            "frame_id": frame_idx,
+            "mode": stats.get("mode"),
+            "active": stats.get("active"),
+            "skip_reason": stats.get("skip_reason"),
+            "frame_weight": stats.get("frame_weight"),
+            "dgc_loss": stats.get("dgc_loss"),
+            "dgc_data_loss": stats.get("dgc_data_loss"),
+            "dgc_prior_loss": stats.get("dgc_prior_loss"),
+            "metric_loss": stats.get("metric_loss"),
+            "shape_loss": stats.get("shape_loss"),
+            "valid_ratio": stats.get("valid_ratio"),
+            "rail_mask_ratio": stats.get("rail_mask_ratio"),
+            "opacity_valid_ratio": stats.get("opacity_valid_ratio"),
+            "learned_depth_scale": stats.get("learned_depth_scale"),
+            "scale_saturated": stats.get("scale_saturated"),
+            "median_abs_residual": stats.get("median_abs_residual"),
+            "median_log_residual": stats.get("median_log_residual"),
+            "normalization_offset_render": stats.get("normalization_offset_render"),
+            "normalization_offset_input": stats.get("normalization_offset_input"),
+            "rail_status": stats.get("rail_status"),
+            "rail_confidence": stats.get("rail_confidence"),
+            "rail_samples": stats.get("rail_samples"),
+            "rail_selected_ratio": stats.get("rail_selected_ratio"),
+            "rail_row_scale_raw_mad": stats.get("rail_row_scale_raw_mad"),
+            "rail_pixel_width_mad": stats.get("rail_pixel_width_mad"),
+        }
+        self.dgc_diag_rows.append(row)
+        if self.iteration_count % self.dgc_log_every == 0:
+            if row["active"]:
+                Log(
+                    f"DGC iter={self.iteration_count} frame={frame_idx} "
+                    f"loss={row['dgc_loss']:.4f} valid={row['valid_ratio']:.3f} "
+                    f"rail={row['rail_status']} weight={row['frame_weight']:.2f} "
+                    f"scale={row['learned_depth_scale']:.3f}",
+                    tag="DGC",
+                )
+            else:
+                Log(
+                    f"DGC iter={self.iteration_count} frame={frame_idx} "
+                    f"skip={row['skip_reason']} rail={row['rail_status']}",
+                    tag="DGC",
+                )
+
+    def write_dgc_diag(self):
+        if not self.dgc_enabled or self.dgc_diag_written or not self.dgc_diag_rows:
+            return
+        save_dir = self.config.get("Results", {}).get("save_dir")
+        if not save_dir:
+            return
+        os.makedirs(save_dir, exist_ok=True)
+        path = os.path.join(save_dir, "depth_gaussian_consistency_diag.csv")
+        fieldnames = [
+            "iteration",
+            "frame_id",
+            "mode",
+            "active",
+            "skip_reason",
+            "frame_weight",
+            "dgc_loss",
+            "dgc_data_loss",
+            "dgc_prior_loss",
+            "metric_loss",
+            "shape_loss",
+            "valid_ratio",
+            "rail_mask_ratio",
+            "opacity_valid_ratio",
+            "learned_depth_scale",
+            "scale_saturated",
+            "median_abs_residual",
+            "median_log_residual",
+            "normalization_offset_render",
+            "normalization_offset_input",
+            "rail_status",
+            "rail_confidence",
+            "rail_samples",
+            "rail_selected_ratio",
+            "rail_row_scale_raw_mad",
+            "rail_pixel_width_mad",
+        ]
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.dgc_diag_rows)
+        self.dgc_diag_written = True
+        Log(f"Saved DGC diagnostics: {path}", tag="DGC")
 
     def add_next_kf(self, frame_idx, viewpoint, init=False, scale=2.0, depth_map=None, rgb = None):
         Log(f'BACKEND: add_next_kf idx: {frame_idx}')
@@ -168,6 +266,7 @@ class BackEnd(mp.Process):
         frames_to_optimize = self.config["Training"]["pose_window"]
 
         current_window_set = set(current_window)
+        depth_scale_opt_ids = set(current_window[len(current_window) // 2:]) if self.pose_opt else set()
         for cam_idx, viewpoint in self.viewpoints.items():
             if cam_idx in current_window_set:
                 continue
@@ -228,9 +327,17 @@ class BackEnd(mp.Process):
                     render_pkg["n_touched"],
                 )
 
-                loss_mapping += get_loss_mapping(
-                    self.config, image, depth, viewpoint, opacity
+                loss, dgc_stats = get_loss_mapping(
+                    self.config,
+                    image,
+                    depth,
+                    viewpoint,
+                    opacity,
+                    return_stats=True,
+                    use_depth_scale=self.pose_opt and viewpoint.uid in depth_scale_opt_ids,
                 )
+                loss_mapping += loss
+                self.record_dgc_stats(viewpoint.uid, dgc_stats)
                 viewspace_point_tensor_acm.append(viewspace_point_tensor)
                 visibility_filter_acm.append(visibility_filter)
                 radii_acm.append(radii)
@@ -275,9 +382,17 @@ class BackEnd(mp.Process):
                     render_pkg["n_touched"],
                 )
 
-                loss_mapping += get_loss_mapping(
-                    self.config, image, depth, viewpoint, opacity
+                loss, dgc_stats = get_loss_mapping(
+                    self.config,
+                    image,
+                    depth,
+                    viewpoint,
+                    opacity,
+                    return_stats=True,
+                    use_depth_scale=False,
                 )
+                loss_mapping += loss
+                self.record_dgc_stats(viewpoint.uid, dgc_stats)
                 viewspace_point_tensor_acm.append(viewspace_point_tensor)
                 visibility_filter_acm.append(visibility_filter)
                 radii_acm.append(radii)
@@ -423,6 +538,7 @@ class BackEnd(mp.Process):
             else:
                 data = self.backend_queue.get()
                 if data[0] == "stop":
+                    self.write_dgc_diag()
                     break
                 elif data[0] == "pause":
                     self.pause = True
@@ -534,6 +650,19 @@ class BackEnd(mp.Process):
                                 "name": "exposure_b_{}".format(viewpoint.uid),
                             }
                         )
+                        if (
+                            self.pose_opt
+                            and self.dgc_enabled
+                            and self.dgc_cfg.get("learn_depth_scale", False)
+                            and getattr(viewpoint, "depth_log_scale_delta", None) is not None
+                        ):
+                            opt_params.append(
+                                {
+                                    "params": [viewpoint.depth_log_scale_delta],
+                                    "lr": float(self.dgc_cfg.get("depth_scale_lr", 0.001)),
+                                    "name": "depth_log_scale_delta_{}".format(viewpoint.uid),
+                                }
+                            )
                     if self.pose_opt:
                         self.keyframe_optimizers = torch.optim.Adam(opt_params)
 

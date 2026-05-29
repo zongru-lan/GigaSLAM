@@ -1,0 +1,49 @@
+inherit_from: configs/railway/rowtrack350/template.yaml
+
+# Bold Depth-Gaussian Consistency experiment.
+# This is intentionally outside the rowtrack350 mainline. It keeps full
+# RGB rendering metrics while saving only keyframe render images.
+Results:
+  save_dir: results/dgc_bold
+  eval_rendering: true
+  rendering_eval:
+    eval_rgb_metrics: true
+    save_rgb: true
+    save_rgb_keyframes_only: true
+    save_downsample_rgb: false
+    filename_from_input: true
+  rendered_depth_diag:
+    enabled: true
+    keyframes_only: false
+    save_rgb: false
+    eval_rgb_metrics: true
+    save_npz: true
+    save_npz_limit: 20
+    save_preview: true
+    save_preview_limit: 20
+    opacity_threshold: 0.95
+    preview_max_depth: 80.0
+
+RailScale:
+  metric_width_candidates_m:
+  - 1.435
+  - 1.5
+  - 1.55
+  - 1.6
+
+DepthGaussianConsistency:
+  enabled: true
+  lambda_depth: 0.05
+  loss_type: log_l1
+  opacity_threshold: 0.95
+  min_depth: 0.1
+  max_depth: 120.0
+  downsample: 4
+  learn_depth_scale: true
+  depth_scale_lr: 0.001
+  depth_scale_prior_weight: 0.02
+  depth_log_scale_clamp: 0.15
+  log_every: 50
+
+Hierarchical:
+  color_refinement_iter: 10
