@@ -1,0 +1,19 @@
+inherit_from: configs/railway/rowtrack350/scenes/scene_16_train.yaml
+
+# Single-scene convenience config for quickly checking the rendered-depth
+# diagnostic path on scene_16_train.
+Results:
+  eval_rendering: true
+  rendered_depth_diag:
+    enabled: true
+    keyframes_only: true
+    save_rgb: false
+    eval_rgb_metrics: false
+    save_npz: true
+    save_npz_limit: 20
+    save_preview: true
+    save_preview_limit: 20
+    opacity_threshold: 0.95
+    preview_max_depth: 80.0
+Hierarchical:
+  color_refinement_iter: 0

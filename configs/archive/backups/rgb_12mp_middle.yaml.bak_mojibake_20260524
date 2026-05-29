@@ -1,0 +1,131 @@
+﻿inherit_from: "configs/base_config.yaml"
+
+Results:
+  use_gui: False
+  eval_rendering: False
+  auto_eval_ate: True
+  auto_postprocess_trajectory: False
+  auto_eval_monocular: False
+  auto_eval_est_convention: 'w2c'
+  auto_eval_use_pose_idx: True
+  auto_eval_compare_pose_idx: True
+# Dataset:
+#   pose_path: "/root/GigaSLAM/railway_data/gt_poses/train/14_poses_gt.npy"
+
+Training:
+  # kf_translation: 0.04  # 浠?0.08 闄嶅埌 0.04锛岃繘涓€姝ュ鍔犲叧閿抚瀵嗗害
+  # kf_min_translation: 0.02  # 浠?0.05 闄嶅埌 0.02锛岀‘淇濇渶灏忎綅绉讳篃鑳借Е鍙戝叧閿抚
+  # window_size: 3  # 浠?4 闄嶅埌 3锛屽噺灏戞粦鍔ㄧ獥鍙ｅぇ灏忎互鑺傜渷鏄惧瓨
+  mapping_itr_num: 3 # 姝ｅ紡ATE妗ｏ細淇濈暀鍚庣浣嶅Э绮惧寲璐ㄩ噺
+  init_itr_num: 1050 # 姝ｅ紡ATE妗ｏ細鎭㈠ base 鍒濆鍖栬凯浠ｏ紝閬垮厤鍒濆鍖栧湴鍥惧奖鍝嶈建杩?  tracking_itr_num: 300 # 300 姣忓抚浣嶅Э浼樺寲杩唬娆℃暟  浣嶅Э鏇寸簿鍑嗭紝浣嗚窡韪洿鎱?
+
+Dataset:
+  color_path: "/root/GigaSLAM/railway_data/scene_16_train" # 14 19
+  pose_path: "/root/GigaSLAM/railway_data/gt_poses/npy/scene_16_train.npy"
+  # pcd_downsample: 2  # 鐐逛簯涓嬮噰鏍?鍊嶏紝鍑忓皯鏄惧瓨鍗犵敤
+  # pcd_downsample_init: 3  # 鍒濆鍖栨椂涓嬮噰鏍?鍊嶏紝閬垮厤绗竴甯OM
+  Calibration:
+    fx: 7267.95450880415
+    fy: 7267.95450880415
+    cx: 2056.049238502414
+    cy: 1232.862908875167
+    k1: -0.0790171
+    k2: -0.17716
+    p1: 0.0
+    p2: 0.0
+    k3: 1.7629
+    width: 4112
+    height: 2504
+    distorted: False
+
+SLAM:
+  viz: True
+  loop_closure: False
+  motion_thresh: 0.0 # 姝ｅ紡ATE妗ｏ細0/璐熸暟 = 涓嶈烦甯э紝淇濊瘉 poses_est 涓?GT 甯у彿涓€涓€瀵瑰簲
+  loop_detect_thresh: 0.034 # smaller is better, but be careful of false positives
+  2d2d_thread: 20 # number of parallel threads for 2D-2D matching
+  n_max: 5000 # maximum number of keyframes; increase if the sequence is longer
+  # 涓嶉檷閲囨牱锛?鎶?disk_max_size 璁句负澶т簬鍥惧儚鏈€澶ц竟闀跨殑鍊煎嵆鍙紝姣斿锛?
+  # disk_max_size: 9999 杩欐牱 scale_factor 濮嬬粓涓?1.0锛宺esize 閫昏緫涓嶄細瑙﹀彂銆?
+  # 鎺у埗 DISK 杈撳叆鍒嗚鲸鐜囦笂闄?
+  disk_max_size: 2048 # resize images to this max dimension before DISK feature extraction to save GPU memory 1024 1536 2048
+  # 鎻愬彇鏇村鐗瑰緛鐐硅ˉ鍋块檷閲囨牱鎹熷け 
+  num_features_disk: 8192 # increase from default 2048 to compensate for resolution downscaling 4096
+  scale_smooth_alpha: 0.7  # EMA 鏉冮噸锛?.0 = 鍏抽棴锛堥粯璁よ涓轰笉鍙橈級
+  pnp_first: True   # 璇婃柇鍩虹嚎锛歅nP浼樺厛鐣ヤ紭浜嶦鐭╅樀璺嚎锛涘悗缁笉鍐嶅洿缁曠函VO鍙傛暟鐩茶皟
+  depth_crop_top: 0.2   # 0.3锛堥粯璁わ級= 瑁佹帀涓婃柟30%锛?.2 = 瑁佹帀涓婃柟20%锛屼繚鐣欐洿澶氳繙鏅?
+  scale_crop_bottom: 0.6  # 1.0锛堥粯璁わ級= 涓嶈涓嬫柟锛?.6 = 鍙敤涓婃柟60%鍋氬昂搴︽仮澶嶏紝灞忚斀閾佽建鍖哄煙
+  depth_xval_thresh: 0.3  # 0.0锛堥粯璁わ級= 鍏抽棴锛?0 = 娣卞害浜ゅ弶鏍￠獙闃堝€硷紙鎺ㄨ崘 0.3锛夛紝杩囨护鏋曟湪璇尮閰?  3d2d_thread: 40   # 20锛堥粯璁わ級锛涘缓璁?40-50锛屾樉钁楁彁鍗囬瞾妫掓€э紝浠ｄ环鏄瘡甯ц€楁椂鐣ュ
+  log_vo_diag: true          # 杈撳嚭 vo_diag.csv锛岀敤浜庤瘖鏂?PnP/灏哄害鎭㈠/姝ラ暱婕傜Щ
+
+DepthModel:
+  # backend: 'unidepth' | 'railway'
+  # 'railway' uses the custom railway depth network (railway_depth_net/ckpt)
+  #   unidepth: UniDepthV2锛岃竟缂樻竻鏅帮紝鏈夊唴鍙傜害鏉?
+  #   railway:  鑷畾涔夐搧璺繁搴︾綉缁滐紝閾佽建/鍦伴潰缁撴瀯鏇村ソ
+  backend: 'unidepth'
+  railway_ckpt_dir: '/root/GigaSLAM/railway_depth_net/ckpt'
+  railway_model_name: '/root/GigaSLAM/railway_depth_net/Depth-Anything-V2-Small-hf'  # local path relative to railway_depth_net/code/
+  # NOTE: Avoid using the latest UniDepthV2 version due to compatibility issues
+  # Use the pretrained weights from commit dated June 12, 2024
+  from_huggingface: False
+  huggingface:
+    model_name: 'lpiccinelli/unidepth-v2-vitl14' 
+    commit_hash: '1d0d3c52f60b5164629d279bb9a7546458e6dcc4'
+    # vits / vitl: the larger the better but more GPU memory consumption
+    # lpiccinelli/unidepth-v2-vits14
+    # commit hash: 045c7eff65610869bf4917432ec3ba0d739f0cb7
+    # lpiccinelli/unidepth-v2-vitl14
+    # commit hash: 1d0d3c52f60b5164629d279bb9a7546458e6dcc4
+  local_snapshot_path: '/root/GigaSLAM/unidepth_model' 
+  # replace it to your local path where snapshot downloaded
+  # /root/GigaSLAM/unidepth_model
+
+RailScale:
+  enabled: true
+  apply_correction: true
+  correction_mode: 'metric_width'
+  metric_width_m: 1.600
+  mode: 'detector'
+  metric_width_candidates_m: [1.435, 1.500, 1.550, 1.600]
+  detector_checkpoint: '/autodl-fs/data/GigaSLAM/railbench/rail_detector_runs/segformer_b0/best.pt'
+  detector_device: 'cuda'
+  detector_image_size: [768, 432]
+  detector_threshold: 0.30
+  detector_min_peak: 0.25
+  detector_min_width_px: 12.0
+  detector_center_x_frac: 0.50
+  detector_peak_topk: 8
+  detector_peak_nms_px: 24
+  detector_max_width_px_frac: 0.45
+  detector_max_center_jump_ratio: 0.18
+  calibration_frames: 30
+  min_confidence: 0.65
+  ema_alpha: 0.20
+  min_scale: 0.50
+  max_scale: 2.20
+  max_scale_step: 0.20
+  max_width_jump_ratio: 0.12
+  min_samples: 3
+  max_detect_width: 1280
+  roi_y_min: 0.45
+  roi_y_max: 0.95
+  sample_y_fracs: [0.58, 0.65, 0.72, 0.80, 0.88]
+  log_diag: true
+  log_row_diag: true
+  save_debug: true
+  debug_every: 20
+
+Hierarchical:
+  voxel_size_lis: [0.1, 0.3, 1.0, 4.0, 15.0] # 鍑忓皬浣撶礌灏哄浠ユ洿濂藉湴鎹曟崏閾佽建缁嗚妭
+  distance_lis: [10.0, 30.0, 70.0, 150.0] # depth range of unidepth: 0~255
+  # Current voxel_size_lis and distance_lis aren't optimal - they just works.
+  # I bet there's a better settings out there that would give us nicer rendering results.
+  n_offsets: 32 # the larger the better   24 10
+  point_ratio: 16 # 浠?26 闄嶅埌 16锛屽鍔犵偣浜戦噰鏍峰瘑搴︿互鏇村ソ鍦伴噸寤洪搧杞?
+  appearance_dim: 64 # 64
+  color_refinement_iter: 0 # 璇婃柇妯″紡锛?00鈫?锛堢渷 ~5-10 鍒嗛挓鏈熬棰滆壊绮惧寲鏃堕棿锛?
+  rendering_width: 1280 # 480 960
+  upsampling_method: 'bicubic' # using Deep Learing method may get better rendering result in original resolution
+  # qualty of F.interpolate mode: 'nearest' < 'area' < 'linear' 鈮?'bilinear' < 'bicubic'
+

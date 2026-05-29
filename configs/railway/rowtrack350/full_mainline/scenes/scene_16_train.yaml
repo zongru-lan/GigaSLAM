@@ -1,0 +1,4 @@
+inherit_from: configs/railway/rowtrack350/full_mainline/template.yaml
+Dataset:
+  color_path: /root/GigaSLAM/railway_data/scene_16_train
+  pose_path: /root/GigaSLAM/railway_data/gt_poses/npy/scene_16_train.npy

@@ -1,0 +1,78 @@
+inherit_from: "configs/base_config.yaml"
+
+# Training:
+#   kf_translation: 0.04  # 从 0.08 降到 0.04，进一步增加关键帧密度
+#   kf_min_translation: 0.02  # 从 0.05 降到 0.02，确保最小位移也能触发关键帧
+#   window_size: 3  # 从 4 降到 3，减少滑动窗口大小以节省显存
+Results:
+  use_gui: False
+
+Training:
+  # kf_translation: 0.04  # 从 0.08 降到 0.04，进一步增加关键帧密度
+  # kf_min_translation: 0.02  # 从 0.05 降到 0.02，确保最小位移也能触发关键帧
+  # window_size: 3  # 从 4 降到 3，减少滑动窗口大小以节省显存
+  mapping_itr_num: 2 # 默认 1，调到 2-5 效果明显  每关键帧建图迭代次数 地图质量提升最明显 对 PSNR 提升最显著，但每个关键帧都会多跑几次优化
+  init_itr_num: 1500 # 默认 1050，适当增加    第一帧初始化迭代次数  初始地图质量更好，但启动更慢
+  tracking_itr_num: 300 # 300 每帧位姿优化迭代次数  位姿更精准，但跟踪更慢
+
+Dataset:
+  color_path: "/root/GigaSLAM/railway_data/last_1200"
+  # pcd_downsample: 2  # 点云下采样2倍，减少显存占用
+  # pcd_downsample_init: 3  # 初始化时下采样3倍，避免第一帧OOM
+  Calibration:
+    fx: 1337.8766
+    fy: 1339.15197
+    cx: 720.603272
+    cy: 473.740953
+    k1: -0.280836
+    k2: 1.443927
+    p1: 0.000675
+    p2: -0.001165
+    k3: -9.418784
+    width: 1280
+    height: 720
+    distorted: False
+
+SLAM:
+  viz: True
+  loop_closure: False
+  motion_thresh: 18.0 # 从 24.0 降到 8.0，大幅增加关键帧密度（值越小，关键帧越密集）
+  loop_detect_thresh: 0.034 # smaller is better, but be careful of false positives
+  3d2d_thread: 20 # number of parallel threads for 3D-2D matching
+  2d2d_thread: 20 # number of parallel threads for 2D-2D matching
+  n_max: 5000 # maximum number of keyframes; increase if the sequence is longer
+  # 不降采样： 把 disk_max_size 设为大于图像最大边长的值即可，比如：
+  # disk_max_size: 9999 这样 scale_factor 始终为 1.0，resize 逻辑不会触发。
+  # 控制 DISK 输入分辨率上限
+  disk_max_size: 9999 # resize images to this max dimension before DISK feature extraction to save GPU memory 1024 1536 2048
+  # 提取更多特征点补偿降采样损失 
+  num_features_disk: 4096 # increase from default 2048 to compensate for resolution downscaling
+
+DepthModel:
+  # NOTE: Avoid using the latest UniDepthV2 version due to compatibility issues
+  # Use the pretrained weights from commit dated June 12, 2024
+  from_huggingface: False
+  huggingface:
+    model_name: 'lpiccinelli/unidepth-v2-vitl14' 
+    commit_hash: '1d0d3c52f60b5164629d279bb9a7546458e6dcc4'
+    # vits / vitl: the larger the better but more GPU memory consumption
+    # lpiccinelli/unidepth-v2-vits14
+    # commit hash: 045c7eff65610869bf4917432ec3ba0d739f0cb7
+    # lpiccinelli/unidepth-v2-vitl14
+    # commit hash: 1d0d3c52f60b5164629d279bb9a7546458e6dcc4
+  local_snapshot_path: '/root/GigaSLAM/unidepth_model' 
+  # replace it to your local path where snapshot downloaded
+  # /root/GigaSLAM/unidepth_model
+
+Hierarchical:
+  voxel_size_lis: [0.1, 0.3, 1.0, 4.0, 15.0] # 减小体素尺寸以更好地捕捉铁轨细节
+  distance_lis: [10.0, 30.0, 70.0, 150.0] # depth range of unidepth: 0~255
+  # Current voxel_size_lis and distance_lis aren't optimal - they just works.
+  # I bet there's a better settings out there that would give us nicer rendering results.
+  n_offsets: 32 # the larger the better   24 10
+  point_ratio: 16 # 从 26 降到 16，增加点云采样密度以更好地重建铁轨
+  appearance_dim: 64 # 64
+  color_refinement_iter: 300 # the larger the better
+  rendering_width: 480
+  upsampling_method: 'bicubic' # using Deep Learing method may get better rendering result in original resolution
+  # qualty of F.interpolate mode: 'nearest' < 'area' < 'linear' ≈ 'bilinear' < 'bicubic'

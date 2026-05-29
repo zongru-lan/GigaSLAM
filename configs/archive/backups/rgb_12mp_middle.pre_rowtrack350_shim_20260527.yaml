@@ -1,0 +1,126 @@
+inherit_from: "configs/base_config.yaml"
+
+Results:
+  use_gui: False
+  eval_rendering: False
+  # Save poses_est.txt / poses_idx.txt and run ATE automatically after SLAM.
+  auto_eval_ate: True
+  # Keep trajectory post-processing disabled; do not hide true scale drift.
+  auto_postprocess_trajectory: False
+  # False = rigid SE(3) alignment only; do not use Sim(3) scale alignment.
+  auto_eval_monocular: False
+  auto_eval_est_convention: 'c2w'
+  # Official metric: align GT by frame ids from poses_idx.txt.
+  auto_eval_use_pose_idx: True
+  # Also emit legacy_ordered for historical comparison.
+  auto_eval_compare_pose_idx: True
+
+# Dataset:
+#   pose_path: "/root/GigaSLAM/railway_data/gt_poses/train/14_poses_gt.npy"
+
+Training:
+  # Optional denser keyframes; currently left at inherited defaults.
+  # kf_translation: 0.04
+  # kf_min_translation: 0.02
+  # window_size: 3
+  mapping_itr_num: 3
+  init_itr_num: 1050
+  tracking_itr_num: 300
+
+Dataset:
+  color_path: "/root/GigaSLAM/railway_data/scene_19_train"
+  pose_path: "/root/GigaSLAM/railway_data/gt_poses/npy/scene_19_train.npy"
+  # pcd_downsample: 2
+  # pcd_downsample_init: 3
+  Calibration:
+    fx: 7267.95450880415
+    fy: 7267.95450880415
+    cx: 2056.049238502414
+    cy: 1232.862908875167
+    k1: -0.0790171
+    k2: -0.17716
+    p1: 0.0
+    p2: 0.0
+    k3: 1.7629
+    width: 4112
+    height: 2504
+    distorted: False
+
+SLAM:
+  viz: True
+  loop_closure: False
+  # 0.0 means do not skip VO frames; every estimated pose keeps its source frame id.
+  motion_thresh: 0.0
+  loop_detect_thresh: 0.034
+  2d2d_thread: 20
+  n_max: 5000
+  # DISK input is resized to this maximum image dimension to control GPU memory.
+  disk_max_size: 2048
+  # More DISK features compensate for the 12MP image downscale.
+  num_features_disk: 8192
+  # EMA for internal VO scale smoothing; 1.0 disables smoothing.
+  scale_smooth_alpha: 0.7
+  # Keep PnP-first route; pure VO parameter sweeps are no longer the main line.
+  pnp_first: True
+  depth_crop_top: 0.2
+  scale_crop_bottom: 0.6
+  depth_xval_thresh: 0.3
+  3d2d_thread: 40
+  log_vo_diag: true
+
+DepthModel:
+  # backend: 'unidepth' | 'railway'
+  backend: 'unidepth'
+  railway_ckpt_dir: '/root/GigaSLAM/railway_depth_net/ckpt'
+  railway_model_name: '/root/GigaSLAM/railway_depth_net/Depth-Anything-V2-Small-hf'
+  # Avoid using the latest UniDepthV2 version due to compatibility issues.
+  from_huggingface: False
+  huggingface:
+    model_name: 'lpiccinelli/unidepth-v2-vitl14'
+    commit_hash: '1d0d3c52f60b5164629d279bb9a7546458e6dcc4'
+  local_snapshot_path: '/root/GigaSLAM/unidepth_model'
+
+RailScale:
+  enabled: true
+  apply_correction: true
+  correction_mode: 'metric_width'
+  metric_width_m: 1.600
+  mode: 'detector'
+  metric_width_candidates_m: [1.435, 1.500, 1.550, 1.600]
+  detector_checkpoint: '/autodl-fs/data/GigaSLAM/railbench/rail_detector_runs/segformer_b0/best.pt'
+  detector_device: 'cuda'
+  detector_image_size: [768, 432]
+  detector_threshold: 0.30
+  detector_min_peak: 0.25
+  detector_min_width_px: 12.0
+  detector_center_x_frac: 0.50
+  detector_peak_topk: 8
+  detector_peak_nms_px: 24
+  detector_max_width_px_frac: 0.45
+  detector_max_center_jump_ratio: 0.18
+  calibration_frames: 30
+  min_confidence: 0.65
+  ema_alpha: 0.20
+  min_scale: 0.50
+  max_scale: 2.20
+  max_scale_step: 0.20
+  max_width_jump_ratio: 0.12
+  min_samples: 3
+  max_detect_width: 1280
+  roi_y_min: 0.45
+  roi_y_max: 0.95
+  sample_y_fracs: [0.58, 0.65, 0.72, 0.80, 0.88]
+  log_diag: true
+  log_row_diag: true
+  save_debug: true
+  debug_every: 20
+
+Hierarchical:
+  voxel_size_lis: [0.1, 0.3, 1.0, 4.0, 15.0]
+  distance_lis: [10.0, 30.0, 70.0, 150.0]
+  n_offsets: 32
+  point_ratio: 16
+  appearance_dim: 64
+  color_refinement_iter: 0
+  rendering_width: 1280
+  upsampling_method: 'bicubic'

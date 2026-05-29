@@ -1,0 +1,124 @@
+# GigaSLAM gitignore
+# Keep source code, configs, scripts, and docs in git.
+# Keep large local data, trained weights, logs, and experiment outputs out of git.
+
+# -----------------------------
+# Python / general caches
+# -----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# -----------------------------
+# Local environments / secrets
+# -----------------------------
+.env
+.env.*
+.venv/
+venv/
+env/
+*.local
+
+# -----------------------------
+# Editor / OS files
+# -----------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# Build artifacts
+# -----------------------------
+build/
+dist/
+*.egg-info/
+**/build/
+**/dist/
+**/*.egg-info/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# -----------------------------
+# Project run outputs
+# -----------------------------
+logs/
+EgoPathGuidance/logs/
+results/
+wandb/
+runs/
+outputs/
+checkpoints/
+
+# -----------------------------
+# Generated experiment configs
+# Keep the README as documentation, ignore generated yaml outputs.
+# -----------------------------
+configs/generated_metric_width/*
+!configs/generated_metric_width/README.md
+
+# -----------------------------
+# Local datasets
+# -----------------------------
+railway_data/
+railbench/object_and_rail/
+railbench/ego_path_runs/
+railbench/rail_detector_runs/
+train-ego-path-detection/data/
+
+# -----------------------------
+# External cloned research repo
+# If needed later, add it as a git submodule or document clone instructions.
+# -----------------------------
+train-ego-path-detection/
+
+# -----------------------------
+# Model weights / large ML artifacts
+# -----------------------------
+ORBvoc.txt
+unidepth_model/
+railway_depth_net/ckpt/
+railway_depth_net/Depth-Anything-V2-Small-hf/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.engine
+*.npz
+*.npy
+
+# -----------------------------
+# Rendered media / point clouds / archives
+# -----------------------------
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.gif
+*.ply
+*.pcd
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# -----------------------------
+# Papers downloaded locally
+# -----------------------------
+papers/*.pdf
