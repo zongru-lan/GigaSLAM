@@ -56,18 +56,13 @@ dist/
 # -----------------------------
 logs/
 EgoPathGuidance/logs/
-results/
+results/*
+!results/README.md
 wandb/
 runs/
 outputs/
 checkpoints/
 
-# -----------------------------
-# Generated experiment configs
-# Keep the README as documentation, ignore generated yaml outputs.
-# -----------------------------
-configs/generated_metric_width/*
-!configs/generated_metric_width/README.md
 
 # -----------------------------
 # Local datasets

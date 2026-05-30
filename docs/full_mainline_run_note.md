@@ -15,11 +15,11 @@
 
 结果目录：
 
-- `results/full_mainline`
+- `results/color_refinement_400`
 
 日志目录：
 
-- `logs/full_mainline`
+- `logs/color_refinement_400`
 
 ## 配置位置
 
@@ -40,7 +40,7 @@
 
 ```yaml
 Results:
-  save_dir: results/full_mainline
+  save_dir: results/color_refinement_400
   eval_rendering: true
   logging:
     quiet: true
@@ -55,21 +55,21 @@ SLAM:
   motion_thresh: 0.0
 
 Hierarchical:
-  color_refinement_iter: 10
+  color_refinement_iter: 400
 ```
 
 含义：
 
 | 参数 | 当前值 | 含义 | 为什么这样设 |
 |---|---:|---|---|
-| `Results.save_dir` | `results/full_mainline` | 指定 full-mainline 结果输出根目录。 | 与当前轨迹主线、消融实验结果隔离。 |
+| `Results.save_dir` | `results/color_refinement_400` | 指定 full-mainline 结果输出根目录。 | 与当前轨迹主线、消融实验结果隔离。 |
 | `Results.eval_rendering` | `true` | SLAM 结束后执行渲染评估，生成渲染指标和可选渲染图。 | 本轮目标包含建图/渲染质量。 |
 | `Results.logging.quiet` | `true` | 启用安静日志模式，过滤逐帧刷屏信息。 | 保留 tqdm、阶段日志、评估指标和错误信息，让日志更适合长期保存。 |
 | `Results.rendering_eval.eval_rgb_metrics` | `true` | 对所有评估帧计算 PSNR/SSIM/LPIPS。 | 保留全序列渲染质量指标口径。 |
 | `Results.rendering_eval.save_rgb_keyframes_only` | `true` | 只把关键帧渲染图保存到 `img/`。 | 减少磁盘占用，同时保留人工检查需要的代表帧。 |
 | `Results.rendering_eval.save_downsample_rgb` | `false` | 不保存 `downsample_img_*`。 | 最终查看主要看上采样后的 `img_*.png`。 |
 | `Results.rendering_eval.filename_from_input` | `true` | 渲染图文件名使用输入图像编号，例如 `img_078.png`。 | 方便追踪渲染图与原始输入帧的对应关系。 |
-| `Hierarchical.color_refinement_iter` | `10` | 后端颜色 refinement 迭代数。实际总迭代数约为 `color_refinement_iter * keyframe_count`。 | 当前模板用于较快验证；若做最终渲染质量结果，可按实验需求调回更高迭代数。 |
+| `Hierarchical.color_refinement_iter` | `400` | 后端颜色 refinement 迭代数。实际总迭代数约为 `color_refinement_iter * keyframe_count`。 | 当前 full-mainline 用于生成较完整的建图/渲染质量结果。 |
 | `SLAM.motion_thresh` | `0.0` | 前端运动量跳帧阈值。`0.0` 表示关闭该跳帧机制。 | 保证每帧都做位姿估计，所有保存的 pose 可参与 ATE/轨迹评估。 |
 
 ## 安静日志模式
@@ -202,7 +202,7 @@ return interval_check or dist_check2 or dist_check
 ```yaml
 SLAM.motion_thresh: 0.0
 Results.eval_rendering: true
-Hierarchical.color_refinement_iter: 10
+Hierarchical.color_refinement_iter: 400
 ```
 
 ## 单序列运行命令
@@ -211,18 +211,18 @@ Hierarchical.color_refinement_iter: 10
 
 ```bash
 cd /root/GigaSLAM
-mkdir -p logs/full_mainline results/full_mainline
+mkdir -p logs/color_refinement_400 results/color_refinement_400
 
 /root/miniconda3/envs/gigaslam/bin/python slam.py \
   --config configs/railway/rowtrack350/full_mainline/scenes/scene_11_train.yaml \
-  2>&1 | tee logs/full_mainline/scene_11_train_full_mainline_$(date +%Y%m%d_%H%M%S).log
+  2>&1 | tee logs/color_refinement_400/scene_11_train_full_mainline_$(date +%Y%m%d_%H%M%S).log
 ```
 
 其他序列只需要替换配置文件和日志文件名前缀。
 
 ## 注意事项
 
-- 当前模板为 `color_refinement_iter: 10`，适合先验证流程、日志和输出文件；如果要做最终渲染质量结果，可以按实验需求提高迭代数并在记录中注明。
+- 当前模板为 `color_refinement_iter: 400`，适合先验证流程、日志和输出文件；如果要做最终渲染质量结果，可以按实验需求提高迭代数并在记录中注明。
 - 如果出现 OOM，优先不要改 `motion_thresh`，因为它会破坏“每帧都有 pose”的需求。
-- full-mainline 结果应与 `results/trajectory_shape_summary.csv` 当前主线轨迹结果分开记录，避免混淆。
+- full-mainline 结果应与 `results/color_refinement_0/trajectory_shape_summary.csv` 当前主线轨迹结果分开记录，避免混淆。
 

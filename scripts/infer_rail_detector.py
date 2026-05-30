@@ -6,7 +6,7 @@ correction. It does not modify SLAM outputs.
 Example:
     python scripts/infer_rail_detector.py \
         --checkpoint /autodl-fs/data/GigaSLAM/railbench/rail_detector_runs/segformer_b0/best.pt \
-        --config configs/rgb_12mp_middle.yaml \
+        --config configs/railway/rowtrack350/scenes/scene_16_train.yaml \
         --out /autodl-fs/data/GigaSLAM/railbench/rail_detector_runs/segformer_b0/scene_16_diag \
         --device cuda \
         --save-overlays \

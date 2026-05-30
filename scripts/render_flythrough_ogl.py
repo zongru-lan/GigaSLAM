@@ -7,7 +7,7 @@ Usage:
     DISPLAY=:99 python scripts/render_flythrough_ogl.py \
         --ply_dir /root/GigaSLAM/PLY/gaussian_save \
         --poses_txt results/.../poses_est.txt \
-        --config configs/rgb_12mp_middle.yaml \
+        --config configs/railway/rowtrack350/template.yaml \
         --output flythrough_ogl.mp4 \
         --width 1280 --height 720 --fps 10
 """

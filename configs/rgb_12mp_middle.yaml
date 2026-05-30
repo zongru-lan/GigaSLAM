@@ -1,3 +1,0 @@
-# Compatibility shim for older single-run commands.
-# Prefer configs/railway/rowtrack350/scenes/*.yaml for explicit scene reproduction.
-inherit_from: configs/railway/rowtrack350/scenes/scene_16_train.yaml

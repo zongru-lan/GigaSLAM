@@ -18,14 +18,14 @@ import numpy as np
 import yaml
 
 
-DEFAULT_SCENES = ["scene_13_train", "scene_17_train", "scene_11_train", "scene_14_train"]
+DEFAULT_SCENES = ["scene_11_train", "scene_13_train", "scene_14_train", "scene_16_train", "scene_17_train", "scene_19_train"]
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--base-config",
-        default="configs/rgb_12mp_middle.yaml",
+        default="configs/railway/rowtrack350/template.yaml",
         help="Template config to read. It is not modified.",
     )
     parser.add_argument(
@@ -52,8 +52,8 @@ def parse_args():
     )
     parser.add_argument(
         "--generated-config-dir",
-        default="configs/generated_metric_width",
-        help="Directory for generated per-scene configs.",
+        default="logs/generated_configs",
+        help="Directory for generated per-scene configs. Defaults outside configs/ to keep maintained configs clean.",
     )
     parser.add_argument(
         "--tag",

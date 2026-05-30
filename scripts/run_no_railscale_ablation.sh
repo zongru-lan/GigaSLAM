@@ -5,7 +5,7 @@ cd /root/GigaSLAM
 
 PYTHON_BIN="${PYTHON_BIN:-/root/miniconda3/envs/gigaslam/bin/python}"
 LOG_DIR="logs/RailScale_ablation"
-RESULT_DIR="results/RailScale_ablation"
+RESULT_DIR="results/color_refinement_0/RailScale_ablation"
 CONFIG_DIR="configs/railway/rowtrack350/ablations/no_railscale"
 
 mkdir -p "${LOG_DIR}" "${RESULT_DIR}"

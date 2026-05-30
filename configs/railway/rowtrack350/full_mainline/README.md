@@ -8,13 +8,13 @@
 
 关键覆盖项：
 
-- `Results.save_dir: results/full_mainline`
+- `Results.save_dir: results/color_refinement_400`
 - `Results.eval_rendering: true`
 - `Results.rendering_eval.eval_rgb_metrics: true`
 - `Results.rendering_eval.save_rgb_keyframes_only: true`
 - `Results.rendering_eval.save_downsample_rgb: false`
 - `Results.rendering_eval.filename_from_input: true`
-- `Hierarchical.color_refinement_iter: 10`
+- `Hierarchical.color_refinement_iter: 400`
 - `SLAM.motion_thresh: 0.0`
 
 `SLAM.motion_thresh: 0.0` 表示前端不按运动阈值跳帧。每个输入帧都会进入深度估计、RailScale、VO 位姿估计和 pose 保存；后端仍然只接收关键帧。
@@ -23,11 +23,11 @@
 
 ```bash
 cd /root/GigaSLAM
-mkdir -p logs/full_mainline results/full_mainline
+mkdir -p logs/color_refinement_400 results/color_refinement_400
 
 /root/miniconda3/envs/gigaslam/bin/python slam.py \
   --config configs/railway/rowtrack350/full_mainline/scenes/scene_11_train.yaml \
-  2>&1 | tee logs/full_mainline/scene_11_train_full_mainline_$(date +%Y%m%d_%H%M%S).log
+  2>&1 | tee logs/color_refinement_400/scene_11_train_full_mainline_$(date +%Y%m%d_%H%M%S).log
 ```
 
 

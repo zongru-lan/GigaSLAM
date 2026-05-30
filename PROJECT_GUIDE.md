@@ -17,7 +17,7 @@ configs/railway/rowtrack350/scenes/*.yaml
 python slam.py --config configs/railway/rowtrack350/scenes/scene_16_train.yaml
 ```
 
-`configs/rgb_12mp_middle.yaml` 仅作为旧命令兼容 shim，当前继承 `scene_16_train.yaml`。
+当前不再维护 `configs/railway/rowtrack350/scenes/scene_16_train.yaml` 兼容入口；复现实验请直接使用 `configs/railway/rowtrack350/scenes/*.yaml`。
 
 当前主要实验环境是 AutoDL / SeetaCloud 远端 `205`：
 
@@ -144,24 +144,10 @@ EgoPathGuidance 的模块设计和训练流程见 `docs/ego_path_guidance_note.m
 冻结 baseline：
 
 ```text
-configs/railway/rowtrack350/baselines/rowtrack350_mainline_20260526.csv
+results/color_refinement_0/trajectory_shape_summary.csv
 ```
 
-回归比较命令：
-
-```bash
-cd /root/GigaSLAM
-/root/miniconda3/envs/gigaslam/bin/python scripts/compare_trajectory_regression.py \
-  --baseline-csv configs/railway/rowtrack350/baselines/rowtrack350_mainline_20260526.csv \
-  --results-dir results
-```
-
-脚本默认把每个 scene 的最新完整结果与冻结 baseline 对比，并要求所有 baseline scene 都有候选新结果；若某些 scene 仍是 baseline run，整体状态会标为 `INCOMPLETE`。输出到 `results/regression_reports/<timestamp>/`：
-
-- `regression_report.md`：总览报告，标记 PASS/FAIL。
-- `regression_scene_summary.csv`：每个 scene 的 ATE、end error、along/lateral p95 变化。
-- `regression_metric_details.csv`：逐指标 verdict。
-- `candidate_shape_summary.csv`：候选实验的形态指标汇总。
+当前 6 个 train scene 的主线轨迹结果保存在 `results/color_refinement_0/`。后续实验至少应与该汇总表中的 ATE、end_error、along_p95、lat_p95 和 length_ratio 对比；如果只改善单个 scene、没有覆盖全部 6 个 baseline scene，或使 scene13 道岔/弯道回归样本退化，则不能作为主线改进。
 
 判断原则：不能只看 ATE，也不能只看单个 scene。若新方法让 scene19 改善但破坏 scene13 道岔/弯道，不能进入主线；若某个改动没有跨 scene 稳定收益，只保留为探针实验。
 
@@ -187,31 +173,9 @@ cd /root/GigaSLAM
 - `results/archive/depthdiag_runs_20260526/depth_scale_diagnostics/diagnostic_report.md`：自动生成的当前诊断结论和 E1-E4 后续实验路线。
 - `results/archive/depthdiag_runs_20260526/depth_scale_diagnostics/depth_scale_consistency_manifest.json`：记录本次诊断范围和输出路径。
 
-注意：普通运行不会保存数值版 Gaussian rendered depth map，所以clean mainline 结果中 `rendered_depth_available=false`，`depth_gs_residual_*` 列为空。若需要做 DepthSplat 式 depth-Gaussian consistency 诊断，可打开 rendered depth feasibility 配置。分析归档 depthdiag 结果时建议加 `--skip-shape-summary`，避免覆盖 root 下 clean mainline 的 `results/trajectory_shape_summary.csv`。
+注意：普通运行不会保存数值版 Gaussian rendered depth map，所以 clean mainline 结果中 `rendered_depth_available=false`，`depth_gs_residual_*` 列为空。当前 rendered-depth feasibility/depthdiag 配置已清理；分析历史归档 depthdiag 结果时建议加 `--skip-shape-summary`，避免覆盖 root 下 clean mainline 的 `results/trajectory_shape_summary.csv`。
 
-Rendered depth 可行性测试可先跑 scene16 单序列：
-
-```bash
-cd /root/GigaSLAM
-mkdir -p logs
-/root/miniconda3/envs/gigaslam/bin/python slam.py \
-  --config configs/railway/rowtrack350/experiments/depthdiag_scene16.yaml \
-  2>&1 | tee logs/depthdiag_scene16_$(date +%Y%m%d_%H%M%S).log
-```
-
-若要一次覆盖 6 个 train scene，使用批跑脚本：
-
-```bash
-cd /root/GigaSLAM
-/root/miniconda3/envs/gigaslam/bin/python scripts/run_metric_width_scenes.py \
-  --base-config configs/railway/rowtrack350/experiments/depthdiag.yaml \
-  --scenes scene_11_train scene_13_train scene_14_train scene_16_train scene_17_train scene_19_train \
-  --generated-config-dir configs/generated_metric_width/depthdiag_all_scenes \
-  --tag depthdiag \
-  --continue-on-error
-```
-
-`experiments/depthdiag.yaml` 继承 rowtrack350 主线，只额外打开 `Results.eval_rendering` 和 `Results.rendered_depth_diag.enabled`，并保持 `Hierarchical.color_refinement_iter: 0`。该配置默认 `save_rgb: false`、`eval_rgb_metrics: false`，不会保存 `img/`，也不会计算 PSNR/SSIM/LPIPS；每个结果目录只生成 `rendered_depth_diag/rendered_depth_diag.csv`、少量 `depth_npz/frame_*.npz` 和 `depth_preview/frame_*.png`。之后重新运行本节的 `scripts/analyze_depth_scale_consistency.py`，即可把 `depth_gs_residual_*` 合入汇总。不要删除 `rendered_depth_diag/`、`plot/`、`poses_est.txt`、`poses_idx.txt`，这些是后续分析需要的。
+Rendered depth feasibility/depthdiag 配置已经清理，不再作为当前维护入口。历史 depthdiag 结果保留在 `results/archive/depthdiag_runs_20260526/`，可继续用上面的 `scripts/analyze_depth_scale_consistency.py` 做离线分析。若后续确实要恢复 rendered-depth 诊断，建议从已归档结果目录中的 `config.yml` 或 Git 历史恢复为新的、有明确命名的实验配置。
 
 当前下一步按受控实验推进：
 
@@ -220,20 +184,7 @@ cd /root/GigaSLAM
 - `E3`：只保留 RailScale 异常诊断，不再采用 hard-hold 保守门控；如果继续改进 RailScale，必须是机制明确且跨 scene 有收益的通用设计，不盲目改 `metric_width_m`。
 - `E4`：只有当 E1 证明 rendered depth residual 有清晰关系后，再尝试把它作为异常检测或权重调节信号，不直接作为优化损失。
 
-优先分析顺序为 `scene_19_train`、`scene_17_train`、`scene_14_train`/`scene_16_train`、`scene_13_train`、`scene_11_train`。当前主要问题是沿轨累计漂移和末端误差，不是明显横向偏轨。
-
-若只补跑未完成的 scene13/scene19：
-
-```bash
-cd /root/GigaSLAM
-/root/miniconda3/envs/gigaslam/bin/python scripts/run_metric_width_scenes.py \
-  --base-config configs/railway/rowtrack350/experiments/depthdiag.yaml \
-  --scenes scene_13_train scene_19_train \
-  --generated-config-dir configs/generated_metric_width/depthdiag_retry \
-  --tag depthdiag_depthonly \
-  --continue-on-error
-```
-
+优先分析顺序为 `scene_19_train`、`scene_17_train`、`scene_14_train`/`scene_16_train`、`scene_13_train`、`scene_11_train`。当前主要问题是沿轨累计漂移和末端误差，不是明显横向偏轨.
 
 ## 当前诊断
 
@@ -285,7 +236,7 @@ ATE RMSE original = 2.8285m
 当前配置文件：
 
 ```text
-configs/rgb_12mp_middle.yaml
+configs/railway/rowtrack350/scenes/scene_16_train.yaml
 ```
 
 关键项：
@@ -527,7 +478,7 @@ scripts/infer_rail_detector.py
 ```bash
 python scripts/infer_rail_detector.py \
   --checkpoint /autodl-fs/data/GigaSLAM/railbench/rail_detector_runs/segformer_b0/best.pt \
-  --config configs/rgb_12mp_middle.yaml \
+  --config configs/railway/rowtrack350/scenes/scene_16_train.yaml \
   --out /autodl-fs/data/GigaSLAM/railbench/rail_detector_runs/segformer_b0/scene_16_diag \
   --device cuda \
   --save-overlays \
@@ -678,7 +629,7 @@ ATE RMSE 从 `22.5911m` 降到 `6.7931m`。它解决了早期超宽 rail pair �
 当前主线 scene 配置：
 `configs/railway/rowtrack350/scenes/scene_13_train.yaml`。
 历史运行用的 generated 配置已归档到
-`configs/archive/generated_metric_width_legacy/scene_13_train_metric_width_1600_widthcap020_rowtrack350_hold.yaml`。
+历史 generated 配置已清理；当前复现请使用 `configs/railway/rowtrack350/scenes/scene_13_train.yaml`。
 该配置保留 `detector_max_width_px_frac: 0.20`，新增 near-field row-consistency：从近处行向远处行跟踪同一 rail pair，
 后续行相对近处参考中心偏移超过 `350px` 时拒绝为 `row_center_inconsistent`，样本不足时沿用上一帧有效 scale。
 这个门限来自已跑正常 scene 的行内中心跨度统计：正常最大约 `178.5px`，scene13 错误道岔帧可超过 `1800px`。
@@ -692,13 +643,11 @@ RailScale 状态为 `corrected 123/149`、`width_jump_hold 26/149`；`row_center
 
 ### 配置目录说明（2026-05-26）
 
-- `configs/rgb_12mp_middle.yaml`：兼容旧命令的薄 shim，当前继承 `configs/railway/rowtrack350/scenes/scene_16_train.yaml`；显式复现实验时仍建议直接使用 `scenes/*.yaml`。
-- `configs/railway/rowtrack350/template.yaml`：当前 rowtrack350 主线基准配置。
-- `configs/railway/rowtrack350/README.md`：`template.yaml` 完整中文参数表和调整建议。
+- `configs/railway/rowtrack350/template.yaml`：当前 color-refinement-0 轨迹主线配置，默认输出到 `results/color_refinement_0/`。
 - `configs/railway/rowtrack350/scenes/*.yaml`：每个 train scene 的薄配置，只覆盖 Dataset 路径。
-- `configs/generated_metric_width/`：仅作为脚本生成配置的输出目录，不再放维护中的主线配置。
-- `configs/archive/generated_metric_width_legacy/`：历史实验、dry-run、retry 和旧 generated 配置归档。
-- `configs/archive/backups/`：一次性备份文件归档。
+- `configs/railway/rowtrack350/full_mainline/*.yaml`：color-refinement-400 完整建图/渲染配置，默认输出到 `results/color_refinement_400/`。
+- `configs/railway/rowtrack350/ablations/no_railscale/*.yaml`：RailScale 消融配置，默认输出到 `results/color_refinement_0/RailScale_ablation/`。
+- `configs/railway/rowtrack350/README.md`：`template.yaml` 完整中文参数表和调整建议。
 
 ### 交接：rowtrack350 跨 scene 回归配置（2026-05-26）
 
@@ -744,7 +693,7 @@ cd /root/GigaSLAM
 /root/miniconda3/envs/gigaslam/bin/python scripts/run_metric_width_scenes.py \
   --base-config configs/railway/rowtrack350/template.yaml \
   --scenes scene_11_train scene_14_train scene_16_train scene_17_train scene_19_train \
-  --generated-config-dir configs/generated_metric_width/rowtrack350_regression \
+  --generated-config-dir logs/generated_configs/rowtrack350_regression \
   --continue-on-error
 ```
 
@@ -773,7 +722,7 @@ cd /root/GigaSLAM
 ### 回归结果：rowtrack350 批次（2026-05-26）
 
 用户执行了旧 generated 基准配置完成跨 scene 回归批次，日志时间戳为 `20260526_102107`。
-该旧基准配置已归档至 `configs/archive/generated_metric_width_legacy/base_metric_width_1600_widthcap020_rowtrack350_hold.yaml`。
+该旧 generated 基准配置已不再保留；当前主线配置以 `configs/railway/rowtrack350/template.yaml` 为准。
 注意：结果目录是 `2026-05-26`，不是 2024 年。
 
 | scene | 最新结果目录 | 最新 ATE RMSE | 旧基线 ATE RMSE | 变化 | 状态 |
@@ -812,8 +761,8 @@ hostname
 which python
 which codex
 python - <<'PY'
-import yaml
-cfg = yaml.safe_load(open('configs/rgb_12mp_middle.yaml'))
+from utils.config_utils import load_config
+cfg = load_config('configs/railway/rowtrack350/scenes/scene_16_train.yaml')
 print('config ok')
 print('RailScale.enabled=', cfg['RailScale']['enabled'])
 print('RailScale.apply_correction=', cfg['RailScale']['apply_correction'])
@@ -825,8 +774,8 @@ PY
 
 ```bash
 python - <<'PY'
-import yaml
-cfg = yaml.safe_load(open('configs/rgb_12mp_middle.yaml'))
+from utils.config_utils import load_config
+cfg = load_config('configs/railway/rowtrack350/scenes/scene_16_train.yaml')
 print('auto_eval_ate=', cfg['Results']['auto_eval_ate'])
 print('auto_eval_use_pose_idx=', cfg['Results']['auto_eval_use_pose_idx'])
 print('est_convention=', cfg['Results']['auto_eval_est_convention'])
@@ -839,7 +788,7 @@ PY
 运行主实验：
 
 ```bash
-python slam.py --config configs/rgb_12mp_middle.yaml
+python slam.py --config configs/railway/rowtrack350/scenes/scene_16_train.yaml
 ```
 
 手动正式 ATE：
@@ -872,7 +821,7 @@ python -m py_compile \
 核心运行：
 
 - `slam.py`
-- `configs/rgb_12mp_middle.yaml`
+- `configs/railway/rowtrack350/scenes/scene_16_train.yaml`
 - `utils/slam_frontend.py`
 - `utils/visual_odometry.py`
 - `utils/eval_utils.py`
