@@ -83,6 +83,7 @@ train-ego-path-detection/data/
 # If needed later, add it as a git submodule or document clone instructions.
 # -----------------------------
 train-ego-path-detection/
+research_repos/
 
 # -----------------------------
 # Model weights / large ML artifacts

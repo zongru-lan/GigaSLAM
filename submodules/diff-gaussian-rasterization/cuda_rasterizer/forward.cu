@@ -17,6 +17,9 @@
 #include <cooperative_groups/reduce.h>
 namespace cg = cooperative_groups;
 
+// Mip-Splatting-style 2D footprint filter used by the railway AA experiment.
+constexpr float RAILWAY_MIP_KERNEL_SIZE = 0.1f;
+
 // Forward method for converting the input spherical harmonics
 // coefficients of each Gaussian to a simple RGB color.
 __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const glm::vec3* means, glm::vec3 campos, const float* shs, bool* clamped)
@@ -73,7 +76,7 @@ __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const 
 }
 
 // Forward version of 2D covariance matrix computation
-__device__ float3 computeCov2D(const float3& mean, float focal_x, float focal_y, float tan_fovx, float tan_fovy, const float* cov3D, const float* viewmatrix)
+__device__ float4 computeCov2D(const float3& mean, float focal_x, float focal_y, float tan_fovx, float tan_fovy, const float* cov3D, const float* viewmatrix)
 {
 	// The following models the steps outlined by equations 29
 	// and 31 in "EWA Splatting" (Zwicker et al., 2002). 
@@ -107,11 +110,18 @@ __device__ float3 computeCov2D(const float3& mean, float focal_x, float focal_y,
 
 	glm::mat3 cov = glm::transpose(T) * glm::transpose(Vrk) * T;
 
-	// Apply low-pass filter: every Gaussian should be at least
-	// one pixel wide/high. Discard 3rd row and column.
-	cov[0][0] += 0.3f;
-	cov[1][1] += 0.3f;
-	return { float(cov[0][0]), float(cov[0][1]), float(cov[1][1]) };
+	// Mip-Splatting-style 2D footprint filtering. Besides enlarging the
+	// footprint, compensate opacity by the covariance determinant ratio so
+	// total contribution remains stable instead of simply blurring/saturating.
+	const float det_0 = max(1e-6f, cov[0][0] * cov[1][1] - cov[0][1] * cov[0][1]);
+	const float det_1 = max(1e-6f, (cov[0][0] + RAILWAY_MIP_KERNEL_SIZE) * (cov[1][1] + RAILWAY_MIP_KERNEL_SIZE) - cov[0][1] * cov[0][1]);
+	float coef = sqrt(det_0 / (det_1 + 1e-6f) + 1e-6f);
+	if (det_0 <= 1e-6f || det_1 <= 1e-6f)
+		coef = 0.0f;
+
+	cov[0][0] += RAILWAY_MIP_KERNEL_SIZE;
+	cov[1][1] += RAILWAY_MIP_KERNEL_SIZE;
+	return { float(cov[0][0]), float(cov[0][1]), float(cov[1][1]), float(coef) };
 }
 
 // Forward method for converting scale and rotation properties of each
@@ -215,7 +225,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	}
 
 	// Compute 2D screen-space covariance matrix
-	float3 cov = computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, viewmatrix);
+	float4 cov = computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, viewmatrix);
 
 	// Invert covariance (EWA algorithm)
 	float det = (cov.x * cov.z - cov.y * cov.y);
@@ -253,7 +263,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	radii[idx] = my_radius;
 	points_xy_image[idx] = point_image;
 	// Inverse 2D covariance and opacity neatly pack into one float4
-	conic_opacity[idx] = { conic.x, conic.y, conic.z, opacities[idx] };
+	conic_opacity[idx] = { conic.x, conic.y, conic.z, opacities[idx] * cov.w };
 	tiles_touched[idx] = (rect_max.y - rect_min.y) * (rect_max.x - rect_min.x);
 }
 

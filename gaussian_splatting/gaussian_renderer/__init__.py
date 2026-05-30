@@ -173,6 +173,24 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
     tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
 
+    if getattr(pipe, "railway_mip_filter", False) and xyz.numel() > 0:
+        # Mip-Splatting-style 3D smoothing: enlarge Gaussians according to
+        # camera distance and compensate opacity by the determinant ratio.
+        # This is intentionally scoped to the AA experiment through pipeline_params.
+        focal_x = float(viewpoint_camera.image_width) / (2.0 * tanfovx)
+        focal_y = float(viewpoint_camera.image_height) / (2.0 * tanfovy)
+        focal = max(focal_x, focal_y)
+        distance = torch.linalg.norm(xyz - viewpoint_camera.camera_center, dim=-1, keepdim=True).clamp_min(1e-6)
+        filter_3d = distance / focal * math.sqrt(0.2)
+        scaling_sq = scaling.square()
+        filtered_sq = scaling_sq + filter_3d.square()
+        opacity_coef = torch.sqrt(
+            scaling_sq.prod(dim=1, keepdim=True).clamp_min(1e-12)
+            / filtered_sq.prod(dim=1, keepdim=True).clamp_min(1e-12)
+        )
+        scaling = torch.sqrt(filtered_sq)
+        opacity = opacity * opacity_coef
+
     raster_settings = GaussianRasterizationSettings(
         image_height=int(viewpoint_camera.image_height),
         image_width=int(viewpoint_camera.image_width),

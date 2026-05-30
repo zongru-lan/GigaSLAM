@@ -16,6 +16,9 @@
 #include <cooperative_groups/reduce.h>
 namespace cg = cooperative_groups;
 
+// Must match the forward 2D footprint filter used by the railway AA experiment.
+constexpr float RAILWAY_MIP_KERNEL_SIZE = 0.1f;
+
 // Backward pass for conversion of spherical harmonics to RGB for
 // each Gaussian.
 __device__ void computeColorFromSH(int idx, int deg, int max_coeffs, const glm::vec3* means, glm::vec3 campos, const float* shs, const bool* clamped, const glm::vec3* dL_dcolor, glm::vec3* dL_dmeans, glm::vec3* dL_dshs,  float *dL_dtau)
@@ -157,6 +160,8 @@ __global__ void computeCov2DCUDA(int P,
 	const float* dL_dconics,
 	float3* dL_dmeans,
 	float* dL_dcov,
+	const float4* __restrict__ conic_opacity,
+	float* dL_dopacity,
 	float *dL_dtau)
 {
 	auto idx = cg::this_grid().thread_rank();
@@ -170,6 +175,8 @@ __global__ void computeCov2DCUDA(int P,
 	// intermediate forward results needed in the backward.
 	float3 mean = means[idx];
 	float3 dL_dconic = { dL_dconics[4 * idx], dL_dconics[4 * idx + 1], dL_dconics[4 * idx + 3] };
+	const float4 conic = conic_opacity[idx];
+	const float combined_opacity = conic.w;
 	float3 t = transformPoint4x3(mean, view_matrix);
 	
 	const float limx = 1.3f * tan_fovx;
@@ -200,10 +207,22 @@ __global__ void computeCov2DCUDA(int P,
 
 	glm::mat3 cov2D = glm::transpose(T) * glm::transpose(Vrk) * T;
 
+	const float det_0 = max(1e-6f, cov2D[0][0] * cov2D[1][1] - cov2D[0][1] * cov2D[0][1]);
+	const float det_1 = max(1e-6f, (cov2D[0][0] + RAILWAY_MIP_KERNEL_SIZE) * (cov2D[1][1] + RAILWAY_MIP_KERNEL_SIZE) - cov2D[0][1] * cov2D[0][1]);
+	const float coef = sqrt(det_0 / (det_1 + 1e-6f) + 1e-6f);
+	const float opacity = combined_opacity / (coef + 1e-6f);
+	const float dL_dcoef = dL_dopacity[idx] * opacity;
+	const float dL_dsqrtcoef = dL_dcoef * 0.5f / (coef + 1e-6f);
+	const float dL_ddet0 = dL_dsqrtcoef / (det_1 + 1e-6f);
+	const float dL_ddet1 = dL_dsqrtcoef * det_0 * (-1.0f / (det_1 * det_1 + 1e-6f));
+	const float dcoef_da = dL_ddet0 * cov2D[1][1] + dL_ddet1 * (cov2D[1][1] + RAILWAY_MIP_KERNEL_SIZE);
+	const float dcoef_db = dL_ddet0 * (-2.0f * cov2D[0][1]) + dL_ddet1 * (-2.0f * cov2D[0][1]);
+	const float dcoef_dc = dL_ddet0 * cov2D[0][0] + dL_ddet1 * (cov2D[0][0] + RAILWAY_MIP_KERNEL_SIZE);
+
 	// Use helper variables for 2D covariance entries. More compact.
-	float a = cov2D[0][0] += 0.3f;
+	float a = cov2D[0][0] += RAILWAY_MIP_KERNEL_SIZE;
 	float b = cov2D[0][1];
-	float c = cov2D[1][1] += 0.3f;
+	float c = cov2D[1][1] += RAILWAY_MIP_KERNEL_SIZE;
 
 	float denom = a * c - b * b;
 	float dL_da = 0, dL_db = 0, dL_dc = 0;
@@ -217,6 +236,18 @@ __global__ void computeCov2DCUDA(int P,
 		dL_da = denom2inv * (-c * c * dL_dconic.x + 2 * b * c * dL_dconic.y + (denom - a * c) * dL_dconic.z);
 		dL_dc = denom2inv * (-a * a * dL_dconic.z + 2 * a * b * dL_dconic.y + (denom - a * c) * dL_dconic.x);
 		dL_db = denom2inv * 2 * (b * c * dL_dconic.x - (denom + 2 * b * b) * dL_dconic.y + a * b * dL_dconic.z);
+
+		if (det_0 <= 1e-6f || det_1 <= 1e-6f)
+		{
+			dL_dopacity[idx] = 0.0f;
+		}
+		else
+		{
+			dL_da += dcoef_da;
+			dL_db += dcoef_db;
+			dL_dc += dcoef_dc;
+			dL_dopacity[idx] = dL_dopacity[idx] * coef;
+		}
 
 		// Gradients of loss L w.r.t. each 3D covariance matrix (Vrk) entry, 
 		// given gradients w.r.t. 2D covariance matrix (diagonal).
@@ -811,6 +842,8 @@ void BACKWARD::preprocess(
 	float* dL_dsh,
 	glm::vec3* dL_dscale,
 	glm::vec4* dL_drot,
+	const float4* conic_opacity,
+	float* dL_dopacity,
 	float* dL_dtau)
 {
 	// Propagate gradients for the path of 2D conic matrix computation. 
@@ -830,6 +863,8 @@ void BACKWARD::preprocess(
 		dL_dconic,
 		(float3*)dL_dmean3D,
 		dL_dcov3D,
+		conic_opacity,
+		dL_dopacity,
 		dL_dtau);
 
 	// Propagate gradients for remaining steps: finish 3D mean gradients,

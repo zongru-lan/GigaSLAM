@@ -1,0 +1,21 @@
+inherit_from: configs/railway/rowtrack350/full_mainline/template.yaml
+
+Results:
+  save_dir: results/rendering_aa_scene16/e1_mip_splatting
+  eval_rendering: true
+  logging:
+    quiet: true
+  rendering_eval:
+    eval_rgb_metrics: true
+    save_rgb: true
+    save_rgb_keyframes_only: true
+    save_downsample_rgb: false
+    filename_from_input: true
+  rendered_depth_diag:
+    enabled: false
+
+Hierarchical:
+  color_refinement_iter: 400
+
+pipeline_params:
+  railway_mip_filter: true

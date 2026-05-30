@@ -65,6 +65,8 @@ namespace BACKWARD
 		float* dL_dsh,
 		glm::vec3* dL_dscale,
 		glm::vec4* dL_drot,
+		const float4* conic_opacity,
+		float* dL_dopacity,
 		float* dL_dtau);
 }
 
