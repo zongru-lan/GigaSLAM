@@ -9,7 +9,8 @@ Usage:
     python scripts/eval_ate.py \
         --est results/.../poses_est.txt \
         --gt railway_data/poses_gt.npy \
-        --save_dir results/.../plot
+        --save_dir results/.../plot \
+        --rpe_deltas 1 5 10
 """
 
 import argparse
@@ -64,6 +65,7 @@ def evaluate_saved_ate(
     monocular=False,
     est_convention="c2w",
     use_pose_idx=True,
+    rpe_deltas=(1, 5, 10),
 ):
     """Evaluate saved poses against W2C GT, using poses_idx.txt if present.
 
@@ -115,6 +117,7 @@ def evaluate_saved_ate(
         label,
         monocular=monocular,
         frame_ids=frame_ids,
+        rpe_deltas=rpe_deltas,
     )
     return float(ate)
 
@@ -137,6 +140,13 @@ def main():
         help="ignore poses_idx.txt and match estimated poses to GT sequentially, matching the legacy manual script",
     )
     parser.add_argument("--monocular", action="store_true")
+    parser.add_argument(
+        "--rpe_deltas",
+        nargs="*",
+        type=int,
+        default=[1, 5, 10],
+        help="frame-index deltas for RPE; pass no values to skip RPE output",
+    )
     args = parser.parse_args()
 
     ate = evaluate_saved_ate(
@@ -147,6 +157,7 @@ def main():
         monocular=args.monocular,
         est_convention=args.est_convention,
         use_pose_idx=not args.ignore_pose_idx,
+        rpe_deltas=args.rpe_deltas,
     )
     print(f"ATE RMSE: {ate:.4f} m  |  saved to {args.save_dir}/")
 

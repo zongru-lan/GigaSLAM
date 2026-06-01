@@ -79,6 +79,32 @@ def _rmse(values):
     return float(np.sqrt(np.mean(values * values)))
 
 
+def _stat_summary(values):
+    values = np.asarray(values, dtype=float)
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return {
+            "count": 0,
+            "mean": None,
+            "median": None,
+            "rmse": None,
+            "std": None,
+            "min": None,
+            "max": None,
+            "p95": None,
+        }
+    return {
+        "count": int(finite.size),
+        "mean": float(np.mean(finite)),
+        "median": float(np.median(finite)),
+        "rmse": float(np.sqrt(np.mean(finite * finite))),
+        "std": float(np.std(finite)),
+        "min": float(np.min(finite)),
+        "max": float(np.max(finite)),
+        "p95": float(np.percentile(finite, 95)),
+    }
+
+
 def _percentile_abs(values, percentile):
     values = np.asarray(values, dtype=float)
     if values.size == 0:
@@ -142,7 +168,87 @@ def _shape_stats(poses_gt, poses_est_aligned, errors, frame_ids, label, alignmen
     }
 
 
-def evaluate_evo(poses_gt, poses_est, plot_dir, label, monocular=False, frame_ids=None):
+def _rotation_angle_deg(R):
+    cos_theta = (float(np.trace(R)) - 1.0) * 0.5
+    cos_theta = float(np.clip(cos_theta, -1.0, 1.0))
+    return float(np.degrees(np.arccos(cos_theta)))
+
+
+def _compute_rpe_stats(poses_gt, poses_est, frame_ids=None, deltas=(1, 5, 10), label="final", alignment_mode="SE3 no scale"):
+    """Compute frame-index RPE on paired C2W trajectories.
+
+    Delta is measured in pose sequence indices after poses_idx.txt alignment.
+    frame_ids are saved for traceability and do not change the delta pairing.
+    """
+    poses_gt = [np.asarray(p, dtype=float) for p in poses_gt]
+    poses_est = [np.asarray(p, dtype=float) for p in poses_est]
+    n = min(len(poses_gt), len(poses_est))
+    if frame_ids is None:
+        frame_ids = list(range(n))
+    frame_ids = list(frame_ids)[:n]
+
+    gt_xyz = _pose_positions(poses_gt[:n])
+    est_xyz = _pose_positions(poses_est[:n])
+
+    out = {
+        "label": str(label),
+        "alignment_mode": alignment_mode,
+        "pose_convention": "c2w",
+        "delta_unit": "frames",
+        "num_poses": int(n),
+        "translation_m_note": "evo-style SE(3) relative-pose translation error",
+        "world_translation_m_note": "world-frame displacement-vector error, useful when camera-axis conventions differ",
+        "deltas": {},
+    }
+
+    for delta in deltas or []:
+        delta = int(delta)
+        if delta <= 0:
+            continue
+
+        trans_errors = []
+        world_trans_errors = []
+        rot_errors = []
+        top_pairs = []
+        for i in range(0, n - delta):
+            j = i + delta
+            delta_gt = np.linalg.inv(poses_gt[i]) @ poses_gt[j]
+            delta_est = np.linalg.inv(poses_est[i]) @ poses_est[j]
+            err = np.linalg.inv(delta_gt) @ delta_est
+            trans_err = float(np.linalg.norm(err[:3, 3]))
+            world_trans_err = float(
+                np.linalg.norm((est_xyz[j] - est_xyz[i]) - (gt_xyz[j] - gt_xyz[i]))
+            )
+            rot_err = _rotation_angle_deg(err[:3, :3])
+            trans_errors.append(trans_err)
+            world_trans_errors.append(world_trans_err)
+            rot_errors.append(rot_err)
+            top_pairs.append(
+                {
+                    "i": int(i),
+                    "j": int(j),
+                    "frame_id_i": int(frame_ids[i]) if i < len(frame_ids) else int(i),
+                    "frame_id_j": int(frame_ids[j]) if j < len(frame_ids) else int(j),
+                    "translation_error_m": trans_err,
+                    "world_translation_error_m": world_trans_err,
+                    "rotation_error_deg": rot_err,
+                }
+            )
+
+        top_pairs.sort(key=lambda row: row["translation_error_m"], reverse=True)
+        out["deltas"][str(delta)] = {
+            "delta": int(delta),
+            "num_pairs": int(len(trans_errors)),
+            "translation_m": _stat_summary(trans_errors),
+            "world_translation_m": _stat_summary(world_trans_errors),
+            "rotation_deg": _stat_summary(rot_errors),
+            "top_translation_error_pairs": top_pairs[:10],
+        }
+
+    return out
+
+
+def evaluate_evo(poses_gt, poses_est, plot_dir, label, monocular=False, frame_ids=None, rpe_deltas=(1, 5, 10)):
     ## Plot
     traj_ref = PosePath3D(poses_se3=poses_gt)
     traj_est = PosePath3D(poses_se3=poses_est)
@@ -181,6 +287,35 @@ def evaluate_evo(poses_gt, poses_est, plot_dir, label, monocular=False, frame_id
         encoding="utf-8",
     ) as f:
         json.dump(shape_stats, f, indent=4)
+
+    rpe_stats = _compute_rpe_stats(
+        poses_gt=traj_ref.poses_se3,
+        poses_est=traj_est_aligned.poses_se3,
+        frame_ids=frame_ids,
+        deltas=rpe_deltas,
+        label=label,
+        alignment_mode=alignment_mode,
+    )
+    with open(
+        os.path.join(plot_dir, "rpe_{}.json".format(str(label))),
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(rpe_stats, f, indent=4)
+
+    trajectory_metrics = {
+        "label": str(label),
+        "alignment_mode": alignment_mode,
+        "ate": ape_stats,
+        "shape": shape_stats,
+        "rpe": rpe_stats,
+    }
+    with open(
+        os.path.join(plot_dir, "trajectory_metrics_{}.json".format(str(label))),
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(trajectory_metrics, f, indent=4)
 
     plot_mode = evo.tools.plot.PlotMode.xy
     fig = plt.figure()
