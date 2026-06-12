@@ -1,0 +1,98 @@
+# rowtrack350 trajectory mainline.
+# Keep this file small: base defaults live in configs/base_config.yaml.
+
+inherit_from: configs/base_config.yaml
+
+Results:
+  save_dir: results/color_refinement_0
+  eval_rendering: false
+  auto_eval_ate: true
+  auto_postprocess_trajectory: false
+  auto_eval_monocular: false
+  auto_eval_est_convention: c2w
+  auto_eval_use_pose_idx: true
+  auto_eval_compare_pose_idx: true
+
+Training:
+  mapping_itr_num: 3
+
+Dataset:
+  Calibration:
+    fx: 7267.95450880415
+    fy: 7267.95450880415
+    cx: 2056.049238502414
+    cy: 1232.862908875167
+    k1: -0.0790171
+    k2: -0.17716
+    p1: 0.0
+    p2: 0.0
+    k3: 1.7629
+    width: 4112
+    height: 2504
+    distorted: false
+
+SLAM:
+  viz: true
+  loop_closure: false
+  motion_thresh: 0.0
+  loop_detect_thresh: 0.034
+  2d2d_thread: 20
+  3d2d_thread: 40
+  n_max: 5000
+  disk_max_size: 2048
+  num_features_disk: 8192
+  pnp_first: true
+  scale_smooth_alpha: 0.7
+  depth_crop_top: 0.2
+  scale_crop_bottom: 0.6
+  depth_xval_thresh: 0.3
+  log_vo_diag: true
+
+DepthModel:
+  backend: unidepth
+  from_huggingface: false
+  local_snapshot_path: /home/leizongru/lzr_ws/GigaSLAM/unidepth_model
+  huggingface:
+    model_name: lpiccinelli/unidepth-v2-vitl14
+    commit_hash: 1d0d3c52f60b5164629d279bb9a7546458e6dcc4
+
+RailScale:
+  enabled: true
+  apply_correction: true
+  correction_mode: metric_width
+  metric_width_m: 1.6
+  metric_width_candidates_m: [1.435, 1.5, 1.55, 1.6]
+
+  mode: detector
+  detector_model_name: /home/leizongru/lzr_ws/GigaSLAM/hf_models/segformer-b0-finetuned-ade-512-512
+  detector_checkpoint: /home/leizongru/lzr_ws/GigaSLAM/railbench/rail_detector_runs/segformer_b0/best.pt
+  detector_max_width_px_frac: 0.2
+
+  min_confidence: 0.65
+  ema_alpha: 0.2
+  min_scale: 0.5
+  max_scale: 2.2
+  max_scale_step: 0.2
+
+  detector_row_consistency: true
+  detector_row_target_tracking: true
+  detector_max_row_center_shift_px: 350.0
+
+  hold_last_scale_on_reject: true
+  hold_last_scale_statuses:
+    - width_jump
+    - center_jump
+    - row_inconsistent
+    - too_few_samples
+
+  save_debug: true
+
+Hierarchical:
+  voxel_size_lis: [0.1, 0.3, 1.0, 4.0, 15.0]
+  distance_lis: [10.0, 30.0, 70.0, 150.0]
+  n_offsets: 32
+  point_ratio: 16
+  appearance_dim: 64
+  color_refinement_iter: 0
+  rendering_width: 1280
+  upsampling_method: bicubic

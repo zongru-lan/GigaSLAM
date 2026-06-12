@@ -1,0 +1,4 @@
+inherit_from: configs/railway/rowtrack350/template.yaml
+Dataset:
+  color_path: /home/leizongru/lzr_ws/railway_data/scene_11_train
+  pose_path: /home/leizongru/lzr_ws/railway_data/gt_poses/npy/scene_11_train.npy

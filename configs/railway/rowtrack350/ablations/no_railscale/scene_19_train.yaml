@@ -1,0 +1,11 @@
+inherit_from: configs/railway/rowtrack350/scenes/scene_19_train.yaml
+
+Results:
+  save_dir: results/color_refinement_0/RailScale_ablation
+
+RailScale:
+  enabled: false
+  apply_correction: false
+  log_diag: false
+  log_row_diag: false
+  save_debug: false

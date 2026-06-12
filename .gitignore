@@ -1,0 +1,27 @@
+# Python/cache
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+
+# Build/runtime output
+build/
+logs/
+results/
+wandb/
+
+# Local model weights and downloaded checkpoints
+ORBvoc.txt
+hf_models/
+unidepth_model/
+railway_depth_net/Depth-Anything-V2-Small-hf/
+
+# Local scratch/debug artifacts
+*.log
+*.tmp
+.DS_Store
+
+# Editor/manual backups
+*.bak
+*.bak_*
+*.orig

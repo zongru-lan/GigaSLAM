@@ -1,0 +1,24 @@
+inherit_from: configs/railway/rowtrack350/template.yaml
+
+Results:
+  save_dir: results/color_refinement_400
+  eval_rendering: true
+  auto_eval_ate: false
+  auto_postprocess_trajectory: false
+  logging:
+    quiet: true
+  rendering_eval:
+    eval_rgb_metrics: true
+    save_rgb: true
+    save_rgb_keyframes_only: true
+    save_downsample_rgb: false
+    filename_from_input: true
+  rendered_depth_diag:
+    enabled: false
+
+
+SLAM:
+  motion_thresh: 0.0
+
+Hierarchical:
+  color_refinement_iter: 400

@@ -1,0 +1,5 @@
+{
+  "metric_hidden_dim": 32,
+  "metric_max_residual": 1.0,
+  "metric_max_depth": 120.0
+}
